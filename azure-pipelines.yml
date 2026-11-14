@@ -57,6 +57,7 @@ stages:
         azureSubscription: $(azureServiceConnection)
         scriptType: bash
         scriptLocation: inlineScript
+        workingDirectory: $(terraformWorkingDirectory)
         inlineScript: |
 
           terraform init \
@@ -68,7 +69,6 @@ stages:
 
           terraform validate
 
-      workingDirectory: $(terraformWorkingDirectory)
       env:
         TF_VAR_subscription_id: $(azureSubscriptionId)
         TF_VAR_admin_ssh_public_key: $(adminSshPublicKey)
@@ -79,11 +79,11 @@ stages:
         azureSubscription: $(azureServiceConnection)
         scriptType: bash
         scriptLocation: inlineScript
+        workingDirectory: $(terraformWorkingDirectory)        
         inlineScript: |
 
           terraform plan -out=$(Build.ArtifactStagingDirectory)/tfplan
 
-      workingDirectory: $(terraformWorkingDirectory)
       env:
         TF_VAR_subscription_id: $(azureSubscriptionId)
         TF_VAR_admin_ssh_public_key: $(adminSshPublicKey)
@@ -143,6 +143,7 @@ stages:
               azureSubscription: $(azureServiceConnection)
               scriptType: bash
               scriptLocation: inlineScript
+              workingDirectory: $(terraformWorkingDirectory)
               inlineScript: |
 
                 terraform init \
@@ -157,7 +158,6 @@ stages:
 
                 terraform output
 
-            workingDirectory: $(terraformWorkingDirectory)
             env:
               TF_VAR_subscription_id: $(azureSubscriptionId)
               TF_VAR_admin_ssh_public_key: $(adminSshPublicKey)

@@ -46,7 +46,7 @@ stages:
             mkdir -p /tmp/terraform-install
 
             curl -fsSLo /tmp/terraform.zip \
-              https://releases.hashicorp.com/terraform/1.13.1/terraform_1.13.1_linux_amd64.zip
+              https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
 
             unzip -o /tmp/terraform.zip -d /tmp/terraform-install
 
@@ -75,6 +75,8 @@ stages:
             workingDirectory: $(terraformWorkingDirectory)
             inlineScript: |
 
+              set -e
+
               terraform init \
                 -backend-config="resource_group_name=$(tfStateResourceGroup)" \
                 -backend-config="storage_account_name=$(tfStateStorageAccount)" \
@@ -99,6 +101,8 @@ stages:
             workingDirectory: $(terraformWorkingDirectory)
             inlineScript: |
 
+              set -e
+
               mkdir -p "$(Build.ArtifactStagingDirectory)"
 
               terraform plan \
@@ -117,15 +121,116 @@ stages:
 
 
 # =========================================
-# STAGE 2 - CD / TERRAFORM APPLY
+# STAGE 2 - TEMPORARY RESOURCE GROUP IMPORT
+# =========================================
+
+- stage: Terraform_Import
+  displayName: 'TEMP - Import Existing Resource Group'
+
+  dependsOn: Terraform_Plan
+
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+
+  jobs:
+
+    - job: Import_Resource_Group
+      displayName: 'Import rg-devops-demo'
+
+      pool:
+        vmImage: 'ubuntu-latest'
+
+      steps:
+
+        - checkout: self
+
+        # Install Terraform
+        - script: |
+            set -e
+
+            mkdir -p /tmp/terraform-install
+
+            curl -fsSLo /tmp/terraform.zip \
+              https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+
+            unzip -o /tmp/terraform.zip -d /tmp/terraform-install
+
+            sudo install -m 0755 \
+              /tmp/terraform-install/terraform \
+              /usr/local/bin/terraform
+
+            terraform version
+
+          displayName: 'Install Terraform'
+
+        # Import existing resource group
+        - task: AzureCLI@2
+          displayName: 'Import Existing Resource Group'
+          inputs:
+            azureSubscription: $(azureServiceConnection)
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: $(terraformWorkingDirectory)
+
+            inlineScript: |
+
+              set -euo pipefail
+
+              SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+              echo "Checking existing Azure resource group..."
+
+              az group show \
+                --name rg-devops-demo \
+                --query "{name:name, location:location, id:id}" \
+                -o json
+
+              echo "Initializing Terraform backend..."
+
+              terraform init \
+                -backend-config="resource_group_name=$(tfStateResourceGroup)" \
+                -backend-config="storage_account_name=$(tfStateStorageAccount)" \
+                -backend-config="container_name=$(tfStateContainer)" \
+                -backend-config="key=$(tfStateKey)" \
+                -backend-config="use_azuread_auth=true" \
+                -backend-config="use_cli=true"
+
+              echo "Checking Terraform state..."
+
+              if terraform state list | grep -Fxq "azurerm_resource_group.rg"; then
+
+                echo "Resource group is already imported."
+
+              else
+
+                echo "Importing existing resource group..."
+
+                terraform import -input=false \
+                  -var="subscription_id=${SUBSCRIPTION_ID}" \
+                  azurerm_resource_group.rg \
+                  "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/rg-devops-demo"
+
+              fi
+
+              echo "Verifying imported resource group..."
+
+              terraform state show azurerm_resource_group.rg
+
+          env:
+            TF_VAR_subscription_id: $(azureSubscriptionId)
+            TF_VAR_admin_ssh_public_key: $(adminSshPublicKey)
+
+
+# =========================================
+# STAGE 3 - CD / TERRAFORM APPLY
+# TEMPORARILY DISABLED DURING IMPORT
 # =========================================
 
 - stage: Terraform_Deploy
   displayName: 'CD - Deploy Azure Infrastructure'
 
-  dependsOn: Terraform_Plan
+  dependsOn: Terraform_Import
 
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  condition: false
 
   jobs:
 
@@ -155,7 +260,7 @@ stages:
                   mkdir -p /tmp/terraform-install
 
                   curl -fsSLo /tmp/terraform.zip \
-                    https://releases.hashicorp.com/terraform/1.13.1/terraform_1.13.1_linux_amd64.zip
+                    https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
 
                   unzip -o /tmp/terraform.zip -d /tmp/terraform-install
 
@@ -176,6 +281,8 @@ stages:
                   scriptLocation: inlineScript
                   workingDirectory: $(terraformWorkingDirectory)
                   inlineScript: |
+
+                    set -e
 
                     terraform init \
                       -backend-config="resource_group_name=$(tfStateResourceGroup)" \

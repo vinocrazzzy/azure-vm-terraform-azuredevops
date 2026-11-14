@@ -14,7 +14,7 @@ variables:
   azureServiceConnection: 'sc-azure-devops-demo'
 
   tfStateResourceGroup: 'rg-tfstate'
-  tfStateStorageAccount: 'YOUR_STORAGE_ACCOUNT'
+  tfStateStorageAccount: 'sttfstatedev010101'
   tfStateContainer: 'tfstate'
   tfStateKey: 'dev.terraform.tfstate'
 

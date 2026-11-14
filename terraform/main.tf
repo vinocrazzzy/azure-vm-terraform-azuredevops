@@ -1,5 +1,5 @@
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-devops-demo"
+  name     = "rg-devops-demo-1"
   location = var.location
 
   tags = {

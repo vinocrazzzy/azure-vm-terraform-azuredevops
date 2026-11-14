@@ -23,7 +23,23 @@ stages:
 # ====================================
 # STAGE 1 - CI / PLAN
 # ====================================
+    - script: |
+        set -e
 
+        mkdir -p /tmp/terraform-install
+
+        curl -fsSLo /tmp/terraform.zip \
+          https://releases.hashicorp.com/terraform/1.13.1/terraform_1.13.1_linux_amd64.zip
+
+        unzip -o /tmp/terraform.zip -d /tmp/terraform-install
+
+        sudo install -m 0755 \
+          /tmp/terraform-install/terraform \
+          /usr/local/bin/terraform
+
+        terraform version
+
+      displayName: 'Install Terraform 1.13.1'
 - stage: Terraform_Plan
   displayName: 'CI - Terraform Validation and Plan'
 
@@ -98,7 +114,23 @@ stages:
 # ====================================
 # STAGE 2 - CD / APPLY
 # ====================================
+    - script: |
+        set -e
 
+        mkdir -p /tmp/terraform-install
+
+        curl -fsSLo /tmp/terraform.zip \
+          https://releases.hashicorp.com/terraform/1.13.1/terraform_1.13.1_linux_amd64.zip
+
+        unzip -o /tmp/terraform.zip -d /tmp/terraform-install
+
+        sudo install -m 0755 \
+          /tmp/terraform-install/terraform \
+          /usr/local/bin/terraform
+
+        terraform version
+
+      displayName: 'Install Terraform 1.13.1'
 - stage: Terraform_Deploy
   displayName: 'CD - Deploy Azure Infrastructure'
 
